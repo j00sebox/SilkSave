@@ -6,7 +6,7 @@ using System.Collections;
 using System.Collections.Generic;
 using GlobalEnums;     
 
-[BepInPlugin("com.example.helloworld", "HelloWorld Mod", "1.0.0")]
+[BepInPlugin("com.example.SilkSave", "SilkSave Mod", "1.0.0")]
 public class HelloWorld : BaseUnityPlugin
 {
     private string lastScene;
@@ -34,7 +34,7 @@ public class HelloWorld : BaseUnityPlugin
         GameManager.instance.BeginSceneTransition(new GameManager.SceneLoadInfo {
             SceneName = lastScene,
             EntryGateName = sceneInfo.TransitionGates[0], 
-            HeroLeaveDirection = GatePosition.unknown, // dnSpy should show you enum values
+            HeroLeaveDirection = GatePosition.unknown,
             PreventCameraFadeOut = true,
             WaitForSceneTransitionCameraFade = false,
             Visualization = GameManager.SceneLoadVisualizations.Default
@@ -45,9 +45,9 @@ public class HelloWorld : BaseUnityPlugin
 
     IEnumerator TeleportHeroWhenReady()
     {
+        var hero = HeroController.instance;
         yield return new WaitUntil(() =>
         {
-            var hero = HeroController.instance;
             return hero != null && hero.CanInput();
         });
 
@@ -61,18 +61,18 @@ public class HelloWorld : BaseUnityPlugin
         float y = float.Parse(coords[1]);
         float z = float.Parse(coords[2]);
 
-        HeroController.instance.transform.position = new Vector3(x, y, z);
+        hero.transform.position = new Vector3(x, y, z);
 
-        var rb = HeroController.instance.GetComponent<Rigidbody2D>();
+        var rb = hero.GetComponent<Rigidbody2D>();
         if (rb != null)
         {
             rb.linearVelocity = Vector2.zero;
         }
 
-        if (HeroController.instance.cState != null)
+        if (hero.cState != null)
         {
-            HeroController.instance.cState.recoiling = false;
-            HeroController.instance.cState.transitioning = false;
+            hero.cState.recoiling = false;
+            hero.cState.transitioning = false;
         }
     }
 
