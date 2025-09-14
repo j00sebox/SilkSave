@@ -1,15 +1,19 @@
 ﻿using BepInEx;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using System;
 using System.IO;
 using System.Collections;
 using System.Collections.Generic;
-using GlobalEnums;     
+using System.Reflection;
+using GlobalEnums;   
+using TeamCherry.GameCore;  
 
 [BepInPlugin("com.example.SilkSave", "SilkSave Mod", "1.0.0")]
-public class HelloWorld : BaseUnityPlugin
+public class SilkSave : BaseUnityPlugin
 {
     private string lastScene;
+    private string saveName = "testSave";
 
     void SavePosition()
     {
@@ -24,10 +28,42 @@ public class HelloWorld : BaseUnityPlugin
         {
             Logger?.LogWarning("Failed to save position");
         }
+
+        SaveGameData saveData = GameManager.instance.CreateSaveGameData(2);
+		RestorePointData restorePointData = new RestorePointData(saveData, AutoSaveName.NONE);
+		restorePointData.SetVersion();
+		restorePointData.SetDateString();
+		string text = SaveDataUtility.SerializeSaveData<RestorePointData>(restorePointData);
+		byte[] bytesForSaveJson = GameManager.instance.GetBytesForSaveJson(text);
+		Platform.Current.CreateSaveRestorePoint(2, saveName, true, bytesForSaveJson, null);
     }
 
     void LoadPosition()
     {
+        // Cast the lambda to the expected delegate type
+        // Action<byte[]> callback = (bytes) =>
+        // {
+        //     Logger.LogInfo("yeet");
+
+        //     try
+        //     {
+        //         RestorePointFileWrapper wrapper = SaveDataUtility.DeserializeSaveData<RestorePointFileWrapper>(GameManager.instance.GetJsonForSaveBytes(bytes));
+
+        //         if (wrapper != null)
+        //             Logger.LogInfo("Identifier: " + wrapper.identifier);
+        //         else
+        //             Logger.LogError("Restore point is null!");
+        //     } 
+        //     catch(Exception ex)
+        //     {
+        //         Logger.LogInfo(ex.Message);
+        //     }
+
+        //     Logger.LogInfo("yah");
+        // };
+
+        // GameCoreRuntimeManager.LoadSaveData("Restore_Points1", "NODELrestoreData45.dat", callback);
+
         Dictionary<string, SceneTeleportMap.SceneInfo> teleportMap = SceneTeleportMap.GetTeleportMap();
         SceneTeleportMap.SceneInfo sceneInfo = teleportMap[lastScene];
 
