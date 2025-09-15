@@ -19,6 +19,10 @@
         <HintPath>C:\Program Files (x86)\Steam\steamapps\common\Hollow Knight Silksong\Hollow Knight Silksong_Data\Managed\Newtonsoft.Json.dll</HintPath>
     </Reference>
 
+    <Reference Include="PlayerMaker">
+      <HintPath>C:\Program Files (x86)\Steam\steamapps\common\Hollow Knight Silksong\Hollow Knight Silksong_Data\Managed\PlayMaker.dll</HintPath>
+    </Reference>
+
     <Reference Include="UnityEngine">
       <HintPath>C:\Program Files (x86)\Steam\steamapps\common\Hollow Knight Silksong\Hollow Knight Silksong_Data\Managed\UnityEngine.dll</HintPath>
     </Reference>

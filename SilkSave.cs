@@ -16,6 +16,7 @@ using System.Globalization;
 using GlobalEnums;   
 using TeamCherry.GameCore;  
 using System.Windows.Forms;
+using InControl;
 
 public static class AsyncWinFormsPrompt
 {
@@ -104,8 +105,31 @@ public class SilkSave : BaseUnityPlugin
         });
     }
 
+    // Basically copy-paste of what the game uses except it doesn't reset silk
+    public void SetLoadedGameData(SaveGameData saveData, int saveSlot)
+    {
+        GameManager gm = GameManager.instance;
+        PlayerData playerData = saveData.playerData;
+		SceneData sceneData = saveData.sceneData;
+		playerData.ResetNonSerializableFields();
+		PlayerData.instance = playerData;
+		gm.playerData = playerData;
+		SceneData.instance = sceneData;
+		gm.sceneData = sceneData;
+		gm.profileID = saveSlot;
+		playerData.SetupExistingPlayerData();
+		gm.inputHandler.RefreshPlayerData();
+		QuestManager.UpgradeQuests();
+		if (Platform.Current)
+		{
+			Platform.Current.OnSetGameData(gm.profileID);
+		}
+    }
+
     void LoadPosition()
     {
+        GameManager.instance.isPaused = true;
+
         string filePath = Path.Combine(Paths.ConfigPath, $"{saveName}.dat");
 
         if (!File.Exists(filePath))
@@ -122,14 +146,8 @@ public class SilkSave : BaseUnityPlugin
             RestorePointData restorePointData = SaveDataUtility.DeserializeSaveData<RestorePointData>(json);
             SaveGameData loadedSave = restorePointData.saveGameData;
 
-            GameManager.instance.playerData = loadedSave.playerData;
-            PlayerData.instance = loadedSave.playerData;
-            GameManager.instance.sceneData = loadedSave.sceneData;
-
-            HeroController hc = HeroController.instance;
-
-            hc.gameObject.SetActive(false);
-            hc.gameObject.SetActive(true);
+            SetLoadedGameData(loadedSave, 1);
+            StartCoroutine(RunContinueAndTeleport());
 
             Logger.LogInfo($"Loaded save from {filePath}");
         }
@@ -137,8 +155,48 @@ public class SilkSave : BaseUnityPlugin
         {
             Logger.LogError("Failed to load save: " + e);
         }
+    }
 
-        filePath = Path.Combine(Paths.ConfigPath, $"{saveName}.txt");
+    private IEnumerator RunContinueAndTeleport()
+    {
+        yield return GameManager.instance.RunContinueGame(false);
+
+        var hero = HeroController.instance;
+
+        yield return new WaitUntil(() =>
+        {
+            return hero != null && !GameManager.instance.IsInSceneTransition && hero.isHeroInPosition && !hero.cState.transitioning && hero.CanInput();
+        });
+
+        // try
+        // {
+        //     var spawnPoint = hero.LocateSpawnPoint();
+
+        //     if (spawnPoint == null)
+        //     {
+        //         Logger.LogError("No spawn point found.");
+        //     }
+
+        //     var benchFSM = FSMUtility.LocateFSM(spawnPoint.gameObject, "Bench Control");
+        //     if (benchFSM == null)
+        //     {
+        //         Logger.LogError("Bench Control FSM not found.");
+        //     }
+
+        //     Logger.LogInfo("Sending FINISHED event to Bench FSM...");
+        //     benchFSM.SendEvent("GET UP");
+        // }
+        // catch(Exception ex)
+        // {
+        //     Logger.LogInfo(ex.Message);
+        // }
+        
+        Teleport();
+    }
+
+    public void Teleport()
+    {
+        string filePath = Path.Combine(Paths.ConfigPath, $"{saveName}.txt");
         if (!File.Exists(filePath)) return;
 
         string[] lines = File.ReadAllLines(filePath);
@@ -171,6 +229,8 @@ public class SilkSave : BaseUnityPlugin
         });
 
         StartCoroutine(TeleportHeroWhenReady(position));
+
+        Logger.LogInfo("Teleported!");
     }
 
     IEnumerator TeleportHeroWhenReady(Vector3 destination)
