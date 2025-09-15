@@ -57,6 +57,63 @@ public static class AsyncWinFormsPrompt
     }
 }
 
+public class StateSelectorUI : MonoBehaviour
+{
+    private string[] saveFiles;
+    private string selectedSave;
+
+    private static GameObject canvasObj;
+
+    public static void SelectState(Action<string> onSaveSelected)
+    {
+        if (canvasObj == null)
+        {
+            canvasObj = new GameObject("SavePickerCanvas");
+            Canvas canvas = canvasObj.AddComponent<Canvas>();
+            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            canvasObj.AddComponent<CanvasScaler>();
+            canvasObj.AddComponent<GraphicRaycaster>();
+        }
+
+        string[] saveFiles = Directory.GetFiles(Paths.ConfigPath, "*.dat");
+
+        for (int i = 0; i < saveFiles.Length; i++)
+        {
+            string saveName = Path.GetFileNameWithoutExtension(saveFiles[i]);
+
+            GameObject buttonObj = new GameObject($"Button_{saveName}");
+            buttonObj.transform.SetParent(canvasObj.transform);
+
+            UnityEngine.UI.Button button = buttonObj.AddComponent<UnityEngine.UI.Button>();
+            Image img = buttonObj.AddComponent<Image>();
+            img.color = Color.gray;
+
+            RectTransform rt = buttonObj.GetComponent<RectTransform>();
+            rt.sizeDelta = new Vector2(200, 40);
+            rt.anchoredPosition = new Vector2(0, -50 * i);
+
+            GameObject textObj = new GameObject("Text");
+            textObj.transform.SetParent(buttonObj.transform);
+            Text txt = textObj.AddComponent<Text>();
+            txt.text = saveName;
+            txt.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
+            txt.alignment = TextAnchor.MiddleCenter;
+            RectTransform textRT = textObj.GetComponent<RectTransform>();
+            textRT.anchorMin = Vector2.zero;
+            textRT.anchorMax = Vector2.one;
+            textRT.offsetMin = Vector2.zero;
+            textRT.offsetMax = Vector2.zero;
+
+            button.onClick.AddListener(() =>
+            {
+                onSaveSelected?.Invoke(saveName);
+                GameObject.Destroy(canvasObj); // remove UI after selection
+                canvasObj = null;
+            });
+        }
+    }
+}
+
 [BepInPlugin("com.example.SilkSave", "SilkSave Mod", "1.0.0")]
 public class SilkSave : BaseUnityPlugin
 {
@@ -124,6 +181,12 @@ public class SilkSave : BaseUnityPlugin
 		{
 			Platform.Current.OnSetGameData(gm.profileID);
 		}
+    }
+
+    public void LoadState(string saveStateName)
+    {
+        this.saveName = saveStateName;
+        LoadPosition();
     }
 
     void LoadPosition()
@@ -259,6 +322,13 @@ public class SilkSave : BaseUnityPlugin
     void Update()
     {
         if (Input.GetKeyDown(KeyCode.F5)) SavePosition();
+        if (Input.GetKeyDown(KeyCode.F6))
+        {
+            StateSelectorUI.SelectState((string saveName) => {
+                Logger.LogInfo("Selected state: " + saveName);
+                LoadState(saveName);
+            });
+        } 
         if (Input.GetKeyDown(KeyCode.F9)) LoadPosition();
     }
 }
