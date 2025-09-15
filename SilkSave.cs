@@ -117,12 +117,6 @@ public class SilkSave : BaseUnityPlugin
     private GameManager gameManager = null!;
     private string saveName = null!;
 
-    void Start()
-    {
-        this.hero = HeroController.instance;
-        this.gameManager = GameManager.instance;
-    }
-
     void SaveState()
     {
         AsyncWinFormsPrompt.ShowDialogAsync("Enter a save name:", "Custom Save", (saveName) =>
@@ -322,12 +316,24 @@ public class SilkSave : BaseUnityPlugin
 
     void Update()
     {
+        if(hero == null) hero = HeroController.instance;
+        if(gameManager == null) gameManager = GameManager.instance;
+        
         if (Input.GetKeyDown(KeyCode.F5)) SaveState();
         if (Input.GetKeyDown(KeyCode.F6)) LoadState();
         if (Input.GetKeyDown(KeyCode.F9))
         {
             StateSelectorUI.SelectState((string saveName) => {
-                LoadState(saveName);
+
+                try
+                {
+                    LoadState(saveName);
+                }
+                catch(Exception ex)
+                {
+                    Logger.LogInfo("Exception when loading: " + ex.Message);
+                }
+                
             });
         } 
     }
