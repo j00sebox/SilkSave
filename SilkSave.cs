@@ -24,7 +24,7 @@ public static class AsyncWinFormsPrompt
     {
         new Thread(() =>
         {
-            string result = null;
+            string result = "";
 
             Form prompt = new Form()
             {
@@ -59,10 +59,7 @@ public static class AsyncWinFormsPrompt
 
 public class StateSelectorUI : MonoBehaviour
 {
-    private string[] saveFiles;
-    private string selectedSave;
-
-    private static GameObject canvasObj;
+    private static GameObject canvasObj = null!;
 
     public static void SelectState(Action<string> onSaveSelected)
     {
@@ -107,8 +104,7 @@ public class StateSelectorUI : MonoBehaviour
             button.onClick.AddListener(() =>
             {
                 onSaveSelected?.Invoke(saveName);
-                GameObject.Destroy(canvasObj); // remove UI after selection
-                canvasObj = null;
+                GameObject.Destroy(canvasObj); 
             });
         }
     }
@@ -117,9 +113,17 @@ public class StateSelectorUI : MonoBehaviour
 [BepInPlugin("com.example.SilkSave", "SilkSave Mod", "1.0.0")]
 public class SilkSave : BaseUnityPlugin
 {
-    private string saveName;
+    private HeroController hero = null!;
+    private GameManager gameManager = null!;
+    private string saveName = null!;
 
-    void SavePosition()
+    void Start()
+    {
+        this.hero = HeroController.instance;
+        this.gameManager = GameManager.instance;
+    }
+
+    void SaveState()
     {
         AsyncWinFormsPrompt.ShowDialogAsync("Enter a save name:", "Custom Save", (saveName) =>
         {
@@ -134,9 +138,9 @@ public class SilkSave : BaseUnityPlugin
                     return name;
                 }
 
-                if (HeroController.instance != null && GameManager.instance != null)
+                if (hero != null && GameManager.instance != null)
                 {
-                    Vector3 pos = HeroController.instance.transform.position;
+                    Vector3 pos = hero.transform.position;
                     string filename = SafeFileName($"{saveName}.txt");
                     string fileData = $"Scene: {GameManager.instance.sceneName}\nPosition: {pos.x},{pos.y},{pos.z}";
                     File.WriteAllText(Path.Combine(Paths.ConfigPath, filename), fileData);
@@ -146,18 +150,18 @@ public class SilkSave : BaseUnityPlugin
                     Logger?.LogWarning("Failed to save");
                 }
 
-                SaveGameData saveData = GameManager.instance.CreateSaveGameData(1);
+                SaveGameData saveData = gameManager.CreateSaveGameData(1);
                 RestorePointData restorePointData = new RestorePointData(saveData, AutoSaveName.NONE);
                 restorePointData.SetVersion();
                 restorePointData.SetDateString();
                 string text = SaveDataUtility.SerializeSaveData<RestorePointData>(restorePointData);
-                byte[] bytesForSaveJson = GameManager.instance.GetBytesForSaveJson(text);
+                byte[] bytesForSaveJson = gameManager.GetBytesForSaveJson(text);
 
                 string fileName = $"{saveName}.dat";
                 string savePath = Path.Combine(Paths.ConfigPath, fileName);
 
                 File.WriteAllBytes(savePath, bytesForSaveJson);
-                Logger.LogInfo($"Saved custom save: {savePath}");
+                Logger!.LogInfo($"Saved custom save: {savePath}");
             }
         });
     }
@@ -165,33 +169,33 @@ public class SilkSave : BaseUnityPlugin
     // Basically copy-paste of what the game uses except it doesn't reset silk
     public void SetLoadedGameData(SaveGameData saveData, int saveSlot)
     {
-        GameManager gm = GameManager.instance;
         PlayerData playerData = saveData.playerData;
 		SceneData sceneData = saveData.sceneData;
 		playerData.ResetNonSerializableFields();
 		PlayerData.instance = playerData;
-		gm.playerData = playerData;
+		gameManager.playerData = playerData;
 		SceneData.instance = sceneData;
-		gm.sceneData = sceneData;
-		gm.profileID = saveSlot;
+		gameManager.sceneData = sceneData;
+		gameManager.profileID = saveSlot;
 		playerData.SetupExistingPlayerData();
-		gm.inputHandler.RefreshPlayerData();
+		gameManager.inputHandler.RefreshPlayerData();
 		QuestManager.UpgradeQuests();
 		if (Platform.Current)
 		{
-			Platform.Current.OnSetGameData(gm.profileID);
+			Platform.Current.OnSetGameData(gameManager.profileID);
 		}
     }
 
     public void LoadState(string saveStateName)
     {
         this.saveName = saveStateName;
-        LoadPosition();
+        LoadState();
     }
 
-    void LoadPosition()
+    // Loads last state that was loaded or saved
+    private void LoadState()
     {
-        GameManager.instance.isPaused = true;
+        gameManager.isPaused = true;
 
         string filePath = Path.Combine(Paths.ConfigPath, $"{saveName}.dat");
 
@@ -205,7 +209,7 @@ public class SilkSave : BaseUnityPlugin
         {
             byte[] fileBytes = File.ReadAllBytes(filePath);
 
-            string json = GameManager.instance.GetJsonForSaveBytes(fileBytes);
+            string json = gameManager.GetJsonForSaveBytes(fileBytes);
             RestorePointData restorePointData = SaveDataUtility.DeserializeSaveData<RestorePointData>(json);
             SaveGameData loadedSave = restorePointData.saveGameData;
 
@@ -222,13 +226,11 @@ public class SilkSave : BaseUnityPlugin
 
     private IEnumerator RunContinueAndTeleport()
     {
-        yield return GameManager.instance.RunContinueGame(false);
-
-        var hero = HeroController.instance;
+        yield return gameManager.RunContinueGame(false);
 
         yield return new WaitUntil(() =>
         {
-            return hero != null && !GameManager.instance.IsInSceneTransition && hero.isHeroInPosition && !hero.cState.transitioning && hero.CanInput();
+            return hero != null && !gameManager.IsInSceneTransition && hero.isHeroInPosition && !hero.cState.transitioning && hero.CanInput();
         });
 
         // try
@@ -282,7 +284,7 @@ public class SilkSave : BaseUnityPlugin
         Dictionary<string, SceneTeleportMap.SceneInfo> teleportMap = SceneTeleportMap.GetTeleportMap();
         SceneTeleportMap.SceneInfo sceneInfo = teleportMap[sceneName];
 
-        GameManager.instance.BeginSceneTransition(new GameManager.SceneLoadInfo {
+        gameManager.BeginSceneTransition(new GameManager.SceneLoadInfo {
             SceneName = sceneName,
             EntryGateName = sceneInfo.TransitionGates[0], 
             HeroLeaveDirection = GatePosition.unknown,
@@ -298,7 +300,6 @@ public class SilkSave : BaseUnityPlugin
 
     IEnumerator TeleportHeroWhenReady(Vector3 destination)
     {
-        var hero = HeroController.instance;
         yield return new WaitUntil(() =>
         {
             return hero != null && hero.CanInput();
@@ -321,14 +322,13 @@ public class SilkSave : BaseUnityPlugin
 
     void Update()
     {
-        if (Input.GetKeyDown(KeyCode.F5)) SavePosition();
-        if (Input.GetKeyDown(KeyCode.F6))
+        if (Input.GetKeyDown(KeyCode.F5)) SaveState();
+        if (Input.GetKeyDown(KeyCode.F6)) LoadState();
+        if (Input.GetKeyDown(KeyCode.F9))
         {
             StateSelectorUI.SelectState((string saveName) => {
-                Logger.LogInfo("Selected state: " + saveName);
                 LoadState(saveName);
             });
         } 
-        if (Input.GetKeyDown(KeyCode.F9)) LoadPosition();
     }
 }
