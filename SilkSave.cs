@@ -17,6 +17,7 @@ using GlobalEnums;
 using TeamCherry.GameCore;  
 using System.Windows.Forms;
 using InControl;
+using System.Linq;
 
 public static class AsyncWinFormsPrompt
 {
@@ -136,9 +137,12 @@ public class SilkSave : BaseUnityPlugin
 
                 if (hero != null && GameManager.instance != null)
                 {
+                    var transitionPoints = TransitionPoint.TransitionPoints;
+                    var safeEntries = transitionPoints.Where(point => point != null && !point.isInactive).ToList();
+
                     Vector3 pos = hero.transform.position;
                     string filename = SafeFileName($"{saveName}.txt");
-                    string fileData = $"Scene: {GameManager.instance.sceneName}\nPosition: {pos.x},{pos.y},{pos.z}";
+                    string fileData = $"Scene: {GameManager.instance.sceneName}\nPosition: {pos.x},{pos.y},{pos.z}\nEntryPointName: {safeEntries[0].name}";
                     File.WriteAllText(Path.Combine(savePath, filename), fileData);
                 }
                 else
@@ -276,14 +280,19 @@ public class SilkSave : BaseUnityPlugin
         float y = float.Parse(posParts[1], CultureInfo.InvariantCulture);
         float z = float.Parse(posParts[2], CultureInfo.InvariantCulture);
 
+        string entryPoint = lines[2].Split(':')[1].Trim();
+
         Vector3 position = new Vector3(x, y, z);
 
         Dictionary<string, SceneTeleportMap.SceneInfo> teleportMap = SceneTeleportMap.GetTeleportMap();
         SceneTeleportMap.SceneInfo sceneInfo = teleportMap[sceneName];
 
+        if (entryPoint == "")
+            entryPoint = sceneInfo.TransitionGates[0];
+
         gameManager.BeginSceneTransition(new GameManager.SceneLoadInfo {
             SceneName = sceneName,
-            EntryGateName = sceneInfo.TransitionGates[0], 
+            EntryGateName = entryPoint,
             HeroLeaveDirection = GatePosition.unknown,
             PreventCameraFadeOut = true,
             WaitForSceneTransitionCameraFade = false,
@@ -320,6 +329,7 @@ public class SilkSave : BaseUnityPlugin
     private void SetSavePath()
     {
         saveSlot = PlayerData.instance.profileID;
+        if (saveSlot == 0) return;
         Logger.LogInfo("Active slot is: " + saveSlot);
         string saveRoot = Path.Combine(Paths.BepInExRootPath, "silksaves");
         savePath = Path.Combine(saveRoot, $"slot_{saveSlot}");
