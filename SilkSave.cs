@@ -347,17 +347,23 @@ public class SilkSave : BaseUnityPlugin
         if (Input.GetKeyDown(KeyCode.F6)) LoadState();
         if (Input.GetKeyDown(KeyCode.F9))
         {
-            StateSelectorUI.SelectState(savePath, (string saveName) => {
-                try
-                {
-                    LoadState(saveName);
-                }
-                catch(Exception ex)
-                {
-                    Logger.LogInfo("Exception when loading: " + ex.Message);
-                }
-                
+            var picker = gameObject.AddComponent<ModSavePicker>();
+            picker.Show(savePath, (selectedSave) =>
+            {
+                Logger.LogInfo("User selected save: " + selectedSave);
             });
+
+            // StateSelectorUI.SelectState(savePath, (string saveName) => {
+            //     try
+            //     {
+            //         LoadState(saveName);
+            //     }
+            //     catch(Exception ex)
+            //     {
+            //         Logger.LogInfo("Exception when loading: " + ex.Message);
+            //     }
+                
+            // });
         } 
     }
 }
