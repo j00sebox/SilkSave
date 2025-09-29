@@ -7,7 +7,7 @@ using UnityEngine.UI;
 
 public class ModSavePicker : MonoBehaviour
 {
-    public string savesFolder; // Folder where saves are stored
+    public string savesFolder; 
     public Vector2 panelSize = new Vector2(800, 600);
     public Vector2 slotSize = new Vector2(200, 100);
     public int slotsPerPage = 6;
@@ -18,6 +18,7 @@ public class ModSavePicker : MonoBehaviour
     private List<string> saveFiles = new List<string>();
     private int currentPage = 0;
     private Action<string> onSaveSelected;
+    private int highlightedIndex = 0; 
 
     public void Show(string folder, Action<string> callback)
     {
@@ -55,21 +56,21 @@ public class ModSavePicker : MonoBehaviour
         c.renderMode = RenderMode.ScreenSpaceOverlay;
     }
 
-private void CreatePanel()
-{
-    panelObj = new GameObject("Panel");
-    panelObj.transform.SetParent(canvasObj.transform, false);
+    private void CreatePanel()
+    {
+        panelObj = new GameObject("Panel");
+        panelObj.transform.SetParent(canvasObj.transform, false);
 
-    Image img = panelObj.AddComponent<Image>();
-    img.color = new Color(0f, 0f, 0f, 0.8f); // semi-transparent background
+        Image img = panelObj.AddComponent<Image>();
+        img.color = new Color(0f, 0f, 0f, 0.8f); 
 
-    RectTransform rt = panelObj.GetComponent<RectTransform>();
-    rt.anchorMin = new Vector2(0f, 0f); // bottom-left
-    rt.anchorMax = new Vector2(1f, 1f); // top-right
-    rt.pivot = new Vector2(0.5f, 0.5f);
-    rt.offsetMin = Vector2.zero; // left-bottom offset
-    rt.offsetMax = Vector2.zero; // right-top offset
-}
+        RectTransform rt = panelObj.GetComponent<RectTransform>();
+        rt.anchorMin = new Vector2(0f, 0f); 
+        rt.anchorMax = new Vector2(1f, 1f); 
+        rt.pivot = new Vector2(0.5f, 0.5f);
+        rt.offsetMin = Vector2.zero; 
+        rt.offsetMax = Vector2.zero; 
+    }
 
     private void CreateSaveSlots()
     {
@@ -77,19 +78,31 @@ private void CreatePanel()
             Destroy(obj);
         saveSlots.Clear();
 
+        int columns = 2; 
+        int rows = Mathf.CeilToInt((float)slotsPerPage / columns);
+
+        float panelWidth = ((RectTransform)panelObj.transform).rect.width;
+        float panelHeight = ((RectTransform)panelObj.transform).rect.height;
+
+        float slotWidth = (panelWidth - (columns + 1) * 10) / columns;
+        float slotHeight = (panelHeight - (rows + 1) * 10) / rows;
+
         for (int i = 0; i < slotsPerPage; i++)
         {
             GameObject slot = new GameObject("SaveSlot" + i);
             slot.transform.SetParent(panelObj.transform, false);
 
             RectTransform rt = slot.AddComponent<RectTransform>();
-            rt.sizeDelta = slotSize;
+            rt.sizeDelta = new Vector2(slotWidth, slotHeight);
             rt.anchorMin = new Vector2(0f, 1f);
             rt.anchorMax = new Vector2(0f, 1f);
             rt.pivot = new Vector2(0f, 1f);
 
-            float x = 10 + (i % 2) * (slotSize.x + 10);
-            float y = -10 - (i / 2) * (slotSize.y + 10);
+            int col = i % columns;
+            int row = i / columns;
+
+            float x = 10 + col * (slotWidth + 10);
+            float y = -10 - row * (slotHeight + 10);
             rt.anchoredPosition = new Vector2(x, y);
 
             Button btn = slot.AddComponent<Button>();
@@ -102,7 +115,10 @@ private void CreatePanel()
             txt.alignment = TextAnchor.MiddleCenter;
             txt.color = Color.white;
             txt.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
-            txt.rectTransform.sizeDelta = slotSize;
+            txt.rectTransform.anchorMin = Vector2.zero;
+            txt.rectTransform.anchorMax = Vector2.one;
+            txt.rectTransform.offsetMin = Vector2.zero;
+            txt.rectTransform.offsetMax = Vector2.zero;
 
             saveSlots.Add(slot);
 
@@ -123,12 +139,18 @@ private void CreatePanel()
             int globalIndex = currentPage * slotsPerPage + i;
             GameObject slot = saveSlots[i];
             Text txt = slot.GetComponentInChildren<Text>();
+            Image bg = slot.GetComponent<Image>();
 
             if (globalIndex < saveFiles.Count)
             {
                 string file = Path.GetFileNameWithoutExtension(saveFiles[globalIndex]);
                 txt.text = file;
                 slot.SetActive(true);
+
+                if (i == highlightedIndex)
+                    bg.color = Color.yellow; 
+                else
+                    bg.color = new Color(0.2f, 0.2f, 0.2f, 1f);
             }
             else
             {
@@ -165,5 +187,54 @@ private void CreatePanel()
     {
         Destroy(canvasObj);
         canvasObj = null;
+    }
+
+    void Update()
+    {
+        int slotsOnPage = Mathf.Min(slotsPerPage, saveFiles.Count - currentPage * slotsPerPage);
+
+        // Right
+        if (Input.GetKeyDown(KeyCode.RightArrow) || Input.GetKeyDown(KeyCode.D))
+        {
+            highlightedIndex++;
+            if (highlightedIndex >= slotsOnPage) highlightedIndex = 0; 
+            UpdatePage();
+        }
+
+        // Left
+        if (Input.GetKeyDown(KeyCode.LeftArrow) || Input.GetKeyDown(KeyCode.A))
+        {
+            highlightedIndex--;
+            if (highlightedIndex < 0) highlightedIndex = slotsOnPage - 1; 
+            UpdatePage();
+        }
+
+        // Down
+        if (Input.GetKeyDown(KeyCode.DownArrow) || Input.GetKeyDown(KeyCode.S))
+        {
+            highlightedIndex += 2; 
+            if (highlightedIndex >= slotsOnPage) highlightedIndex = slotsOnPage - 1;
+            UpdatePage();
+        }
+
+        // Up
+        if (Input.GetKeyDown(KeyCode.UpArrow) || Input.GetKeyDown(KeyCode.W))
+        {
+            highlightedIndex -= 2; 
+            if (highlightedIndex < 0) highlightedIndex = 0; 
+            UpdatePage();
+        }
+
+        // Select
+        if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.Space))
+        {
+            int globalIndex = currentPage * slotsPerPage + highlightedIndex;
+            if (globalIndex < saveFiles.Count)
+                SelectSave(saveFiles[globalIndex]);
+        }
+
+        // Page navigation
+        if (Input.GetKeyDown(KeyCode.PageUp)) PrevPage();
+        if (Input.GetKeyDown(KeyCode.PageDown)) NextPage();
     }
 }
