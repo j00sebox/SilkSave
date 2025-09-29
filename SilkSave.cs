@@ -116,9 +116,22 @@ public class SilkSave : BaseUnityPlugin
     private HeroController hero = null!;
     private GameManager gameManager = null!;
     private string saveName = null!;
+    private int saveSlot = 0;
+
+    void Start()
+    {
+        saveSlot = PlayerData.instance.profileID;
+    }
 
     void SaveState()
     {
+        if (saveSlot == 0)
+        {
+            saveSlot = PlayerData.instance.profileID;
+            Logger.LogInfo("Active slot is: " + saveSlot);
+            if (saveSlot == 0) return;
+        }
+
         AsyncWinFormsPrompt.ShowDialogAsync("Enter a save name:", "Custom Save", (saveName) =>
         {
             if (!string.IsNullOrEmpty(saveName))
@@ -144,7 +157,7 @@ public class SilkSave : BaseUnityPlugin
                     Logger?.LogWarning("Failed to save");
                 }
 
-                SaveGameData saveData = gameManager.CreateSaveGameData(1);
+                SaveGameData saveData = gameManager.CreateSaveGameData(saveSlot);
                 RestorePointData restorePointData = new RestorePointData(saveData, AutoSaveName.NONE);
                 restorePointData.SetVersion();
                 restorePointData.SetDateString();
@@ -189,6 +202,13 @@ public class SilkSave : BaseUnityPlugin
     // Loads last state that was loaded or saved
     private void LoadState()
     {
+        if (saveSlot == 0)
+        {
+            saveSlot = PlayerData.instance.profileID;
+            Logger.LogInfo("Active slot is: " + saveSlot);
+            if (saveSlot == 0) return;
+        }
+
         gameManager.isPaused = true;
 
         string filePath = Path.Combine(Paths.ConfigPath, $"{saveName}.dat");
@@ -207,7 +227,7 @@ public class SilkSave : BaseUnityPlugin
             RestorePointData restorePointData = SaveDataUtility.DeserializeSaveData<RestorePointData>(json);
             SaveGameData loadedSave = restorePointData.saveGameData;
 
-            SetLoadedGameData(loadedSave, 1);
+            SetLoadedGameData(loadedSave, saveSlot);
             StartCoroutine(RunContinueAndTeleport());
 
             Logger.LogInfo($"Loaded save from {filePath}");
