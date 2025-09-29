@@ -61,7 +61,7 @@ public class StateSelectorUI : MonoBehaviour
 {
     private static GameObject canvasObj = null!;
 
-    public static void SelectState(Action<string> onSaveSelected)
+    public static void SelectState(string path, Action<string> onSaveSelected)
     {
         if (canvasObj == null)
         {
@@ -72,7 +72,7 @@ public class StateSelectorUI : MonoBehaviour
             canvasObj.AddComponent<GraphicRaycaster>();
         }
 
-        string[] saveFiles = Directory.GetFiles(Paths.ConfigPath, "*.dat");
+        string[] saveFiles = Directory.GetFiles(path, "*.dat");
 
         for (int i = 0; i < saveFiles.Length; i++)
         {
@@ -117,21 +117,10 @@ public class SilkSave : BaseUnityPlugin
     private GameManager gameManager = null!;
     private string saveName = null!;
     private int saveSlot = 0;
-
-    void Start()
-    {
-        saveSlot = PlayerData.instance.profileID;
-    }
+    private string savePath = "";
 
     void SaveState()
     {
-        if (saveSlot == 0)
-        {
-            saveSlot = PlayerData.instance.profileID;
-            Logger.LogInfo("Active slot is: " + saveSlot);
-            if (saveSlot == 0) return;
-        }
-
         AsyncWinFormsPrompt.ShowDialogAsync("Enter a save name:", "Custom Save", (saveName) =>
         {
             if (!string.IsNullOrEmpty(saveName))
@@ -150,7 +139,7 @@ public class SilkSave : BaseUnityPlugin
                     Vector3 pos = hero.transform.position;
                     string filename = SafeFileName($"{saveName}.txt");
                     string fileData = $"Scene: {GameManager.instance.sceneName}\nPosition: {pos.x},{pos.y},{pos.z}";
-                    File.WriteAllText(Path.Combine(Paths.ConfigPath, filename), fileData);
+                    File.WriteAllText(Path.Combine(savePath, filename), fileData);
                 }
                 else
                 {
@@ -165,10 +154,10 @@ public class SilkSave : BaseUnityPlugin
                 byte[] bytesForSaveJson = gameManager.GetBytesForSaveJson(text);
 
                 string fileName = $"{saveName}.dat";
-                string savePath = Path.Combine(Paths.ConfigPath, fileName);
+                string path = Path.Combine(savePath, fileName);
 
-                File.WriteAllBytes(savePath, bytesForSaveJson);
-                Logger!.LogInfo($"Saved custom save: {savePath}");
+                File.WriteAllBytes(path, bytesForSaveJson);
+                Logger!.LogInfo($"Saved custom save: {path}");
             }
         });
     }
@@ -202,16 +191,9 @@ public class SilkSave : BaseUnityPlugin
     // Loads last state that was loaded or saved
     private void LoadState()
     {
-        if (saveSlot == 0)
-        {
-            saveSlot = PlayerData.instance.profileID;
-            Logger.LogInfo("Active slot is: " + saveSlot);
-            if (saveSlot == 0) return;
-        }
-
         gameManager.isPaused = true;
 
-        string filePath = Path.Combine(Paths.ConfigPath, $"{saveName}.dat");
+        string filePath = Path.Combine(savePath, $"{saveName}.dat");
 
         if (!File.Exists(filePath))
         {
@@ -228,6 +210,7 @@ public class SilkSave : BaseUnityPlugin
             SaveGameData loadedSave = restorePointData.saveGameData;
 
             SetLoadedGameData(loadedSave, saveSlot);
+
             StartCoroutine(RunContinueAndTeleport());
 
             Logger.LogInfo($"Loaded save from {filePath}");
@@ -275,7 +258,7 @@ public class SilkSave : BaseUnityPlugin
 
     public void Teleport()
     {
-        string filePath = Path.Combine(Paths.ConfigPath, $"{saveName}.txt");
+        string filePath = Path.Combine(savePath, $"{saveName}.txt");
         if (!File.Exists(filePath)) return;
 
         string[] lines = File.ReadAllLines(filePath);
@@ -334,17 +317,27 @@ public class SilkSave : BaseUnityPlugin
         }
     }
 
+    private void SetSavePath()
+    {
+        saveSlot = PlayerData.instance.profileID;
+        Logger.LogInfo("Active slot is: " + saveSlot);
+        string saveRoot = Path.Combine(Paths.BepInExRootPath, "silksaves");
+        savePath = Path.Combine(saveRoot, $"slot_{saveSlot}");
+
+        Directory.CreateDirectory(savePath);
+    }
+
     void Update()
     {
-        if(hero == null) hero = HeroController.instance;
-        if(gameManager == null) gameManager = GameManager.instance;
+        if (hero == null) hero = HeroController.instance;
+        if (gameManager == null) gameManager = GameManager.instance;
+        if (PlayerData.instance.profileID != saveSlot) SetSavePath();
         
         if (Input.GetKeyDown(KeyCode.F5)) SaveState();
         if (Input.GetKeyDown(KeyCode.F6)) LoadState();
         if (Input.GetKeyDown(KeyCode.F9))
         {
-            StateSelectorUI.SelectState((string saveName) => {
-
+            StateSelectorUI.SelectState(savePath, (string saveName) => {
                 try
                 {
                     LoadState(saveName);
