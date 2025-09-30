@@ -5,19 +5,19 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
-public class ModSavePicker : MonoBehaviour
+public class SaveSelector : MonoBehaviour
 {
-    public string savesFolder; 
+    public string savesFolder = ""; 
     public Vector2 panelSize = new Vector2(800, 600);
     public Vector2 slotSize = new Vector2(200, 100);
     public int slotsPerPage = 6;
 
-    private GameObject canvasObj;
-    private GameObject panelObj;
+    private GameObject? canvasObj;
+    private GameObject? panelObj;
     private List<GameObject> saveSlots = new List<GameObject>();
     private List<string> saveFiles = new List<string>();
     private int currentPage = 0;
-    private Action<string> onSaveSelected;
+    private Action<string>? onSaveSelected;
     private int highlightedIndex = 0; 
 
     public void Show(string folder, Action<string> callback)
@@ -59,7 +59,7 @@ public class ModSavePicker : MonoBehaviour
     private void CreatePanel()
     {
         panelObj = new GameObject("Panel");
-        panelObj.transform.SetParent(canvasObj.transform, false);
+        panelObj.transform.SetParent(canvasObj?.transform, false);
 
         Image img = panelObj.AddComponent<Image>();
         img.color = new Color(0f, 0f, 0f, 0.8f); 
@@ -120,6 +120,12 @@ public class ModSavePicker : MonoBehaviour
             txt.rectTransform.offsetMin = Vector2.zero;
             txt.rectTransform.offsetMax = Vector2.zero;
 
+            Outline outline = slot.AddComponent<Outline>();
+            outline.effectColor = Color.white;
+            outline.effectDistance = new Vector2(3, 3);
+            outline.enabled = false;
+
+
             saveSlots.Add(slot);
 
             int index = i;
@@ -134,7 +140,7 @@ public class ModSavePicker : MonoBehaviour
 
     private void UpdatePage()
     {
-        for (int i = 0; i < saveSlots.Count; i++)
+        for (int i = 0; i < saveSlots.Count; ++i)
         {
             int globalIndex = currentPage * slotsPerPage + i;
             GameObject slot = saveSlots[i];
@@ -148,9 +154,9 @@ public class ModSavePicker : MonoBehaviour
                 slot.SetActive(true);
 
                 if (i == highlightedIndex)
-                    bg.color = Color.white; 
+                    slot.GetComponent<Outline>().enabled = true;
                 else
-                    bg.color = new Color(0.2f, 0.2f, 0.2f, 1f);
+                    slot.GetComponent<Outline>().enabled = false;
             }
             else
             {
@@ -161,7 +167,7 @@ public class ModSavePicker : MonoBehaviour
 
     private void SelectSave(string savePath)
     {
-        onSaveSelected?.Invoke(savePath);
+        onSaveSelected?.Invoke(savePath.Replace(".dat", ""));
         Close();
     }
 
@@ -169,7 +175,7 @@ public class ModSavePicker : MonoBehaviour
     {
         if ((currentPage + 1) * slotsPerPage < saveFiles.Count)
         {
-            currentPage++;
+            ++currentPage;
             highlightedIndex = 0;
             UpdatePage();
         }
@@ -179,7 +185,7 @@ public class ModSavePicker : MonoBehaviour
     {
         if (currentPage > 0)
         {
-            currentPage--;
+            --currentPage;
             highlightedIndex = 0;
             UpdatePage();
         }
@@ -201,7 +207,7 @@ public class ModSavePicker : MonoBehaviour
             if (highlightedIndex + 1 >= slotsOnPage)
                 NextPage();
             else
-                highlightedIndex++;
+                ++highlightedIndex;
             UpdatePage();
         }
 
@@ -211,7 +217,7 @@ public class ModSavePicker : MonoBehaviour
             if (highlightedIndex - 1 < 0)
                 PrevPage();
             else
-                highlightedIndex--;
+                --highlightedIndex;
             UpdatePage();
         }
 

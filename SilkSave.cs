@@ -120,14 +120,13 @@ public class SilkSave : BaseUnityPlugin
     private int saveSlot = 0;
     private string savePath = "";
 
-    private ModSavePicker saveSelector = null;
+    private SaveSelector? saveSelector = null;
 
     private bool saveSelectorOpen = false;
 
     private void Start()
     {
-
-        saveSelector = gameObject.AddComponent<ModSavePicker>();
+        saveSelector = gameObject.AddComponent<SaveSelector>();
     }
 
     void SaveState()
@@ -360,29 +359,19 @@ public class SilkSave : BaseUnityPlugin
             if (!saveSelectorOpen)
             {
                 saveSelectorOpen = true;
-                saveSelector.Show(savePath, (selectedSave) =>
+                saveSelector?.Show(savePath, (selectedSave) =>
                 {
                     Logger.LogInfo("User selected save: " + selectedSave);
                     saveSelectorOpen = false;
+
+                    LoadState(selectedSave);
                 });
             }
             else
             {
-                saveSelector.Close();
+                saveSelector?.Close();
                 saveSelectorOpen = false;
             }
-            
-            // StateSelectorUI.SelectState(savePath, (string saveName) => {
-            //     try
-            //     {
-            //         LoadState(saveName);
-            //     }
-            //     catch(Exception ex)
-            //     {
-            //         Logger.LogInfo("Exception when loading: " + ex.Message);
-            //     }
-
-                // });
         } 
     }
 }
