@@ -148,7 +148,7 @@ public class ModSavePicker : MonoBehaviour
                 slot.SetActive(true);
 
                 if (i == highlightedIndex)
-                    bg.color = Color.yellow; 
+                    bg.color = Color.white; 
                 else
                     bg.color = new Color(0.2f, 0.2f, 0.2f, 1f);
             }
@@ -170,6 +170,7 @@ public class ModSavePicker : MonoBehaviour
         if ((currentPage + 1) * slotsPerPage < saveFiles.Count)
         {
             currentPage++;
+            highlightedIndex = 0;
             UpdatePage();
         }
     }
@@ -179,6 +180,7 @@ public class ModSavePicker : MonoBehaviour
         if (currentPage > 0)
         {
             currentPage--;
+            highlightedIndex = 0;
             UpdatePage();
         }
     }
@@ -196,16 +198,20 @@ public class ModSavePicker : MonoBehaviour
         // Right
         if (Input.GetKeyDown(KeyCode.RightArrow) || Input.GetKeyDown(KeyCode.D))
         {
-            highlightedIndex++;
-            if (highlightedIndex >= slotsOnPage) highlightedIndex = 0; 
+            if (highlightedIndex + 1 >= slotsOnPage)
+                NextPage();
+            else
+                highlightedIndex++;
             UpdatePage();
         }
 
         // Left
         if (Input.GetKeyDown(KeyCode.LeftArrow) || Input.GetKeyDown(KeyCode.A))
         {
-            highlightedIndex--;
-            if (highlightedIndex < 0) highlightedIndex = slotsOnPage - 1; 
+            if (highlightedIndex - 1 < 0)
+                PrevPage();
+            else
+                highlightedIndex--;
             UpdatePage();
         }
 

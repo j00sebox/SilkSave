@@ -120,6 +120,16 @@ public class SilkSave : BaseUnityPlugin
     private int saveSlot = 0;
     private string savePath = "";
 
+    private ModSavePicker saveSelector = null;
+
+    private bool saveSelectorOpen = false;
+
+    private void Start()
+    {
+
+        saveSelector = gameObject.AddComponent<ModSavePicker>();
+    }
+
     void SaveState()
     {
         AsyncWinFormsPrompt.ShowDialogAsync("Enter a save name:", "Custom Save", (saveName) =>
@@ -345,14 +355,23 @@ public class SilkSave : BaseUnityPlugin
         
         if (Input.GetKeyDown(KeyCode.F5)) SaveState();
         if (Input.GetKeyDown(KeyCode.F6)) LoadState();
-        if (Input.GetKeyDown(KeyCode.F9))
+        if (Input.GetKeyDown(KeyCode.F2))
         {
-            var picker = gameObject.AddComponent<ModSavePicker>();
-            picker.Show(savePath, (selectedSave) =>
+            if (!saveSelectorOpen)
             {
-                Logger.LogInfo("User selected save: " + selectedSave);
-            });
-
+                saveSelectorOpen = true;
+                saveSelector.Show(savePath, (selectedSave) =>
+                {
+                    Logger.LogInfo("User selected save: " + selectedSave);
+                    saveSelectorOpen = false;
+                });
+            }
+            else
+            {
+                saveSelector.Close();
+                saveSelectorOpen = false;
+            }
+            
             // StateSelectorUI.SelectState(savePath, (string saveName) => {
             //     try
             //     {
@@ -362,8 +381,8 @@ public class SilkSave : BaseUnityPlugin
             //     {
             //         Logger.LogInfo("Exception when loading: " + ex.Message);
             //     }
-                
-            // });
+
+                // });
         } 
     }
 }
