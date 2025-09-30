@@ -58,59 +58,6 @@ public static class AsyncWinFormsPrompt
     }
 }
 
-public class StateSelectorUI : MonoBehaviour
-{
-    private static GameObject canvasObj = null!;
-
-    public static void SelectState(string path, Action<string> onSaveSelected)
-    {
-        if (canvasObj == null)
-        {
-            canvasObj = new GameObject("SavePickerCanvas");
-            Canvas canvas = canvasObj.AddComponent<Canvas>();
-            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-            canvasObj.AddComponent<CanvasScaler>();
-            canvasObj.AddComponent<GraphicRaycaster>();
-        }
-
-        string[] saveFiles = Directory.GetFiles(path, "*.dat");
-
-        for (int i = 0; i < saveFiles.Length; i++)
-        {
-            string saveName = Path.GetFileNameWithoutExtension(saveFiles[i]);
-
-            GameObject buttonObj = new GameObject($"Button_{saveName}");
-            buttonObj.transform.SetParent(canvasObj.transform);
-
-            UnityEngine.UI.Button button = buttonObj.AddComponent<UnityEngine.UI.Button>();
-            Image img = buttonObj.AddComponent<Image>();
-            img.color = Color.gray;
-
-            RectTransform rt = buttonObj.GetComponent<RectTransform>();
-            rt.sizeDelta = new Vector2(200, 40);
-            rt.anchoredPosition = new Vector2(0, -50 * i);
-
-            GameObject textObj = new GameObject("Text");
-            textObj.transform.SetParent(buttonObj.transform);
-            Text txt = textObj.AddComponent<Text>();
-            txt.text = saveName;
-            txt.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
-            txt.alignment = TextAnchor.MiddleCenter;
-            RectTransform textRT = textObj.GetComponent<RectTransform>();
-            textRT.anchorMin = Vector2.zero;
-            textRT.anchorMax = Vector2.one;
-            textRT.offsetMin = Vector2.zero;
-            textRT.offsetMax = Vector2.zero;
-
-            button.onClick.AddListener(() =>
-            {
-                onSaveSelected?.Invoke(saveName);
-                GameObject.Destroy(canvasObj); 
-            });
-        }
-    }
-}
-
 [BepInPlugin("com.example.SilkSave", "SilkSave Mod", "1.0.0")]
 public class SilkSave : BaseUnityPlugin
 {
@@ -289,7 +236,15 @@ public class SilkSave : BaseUnityPlugin
         float y = float.Parse(posParts[1], CultureInfo.InvariantCulture);
         float z = float.Parse(posParts[2], CultureInfo.InvariantCulture);
 
-        string entryPoint = lines[2].Split(':')[1].Trim();
+        string entryPoint = "";
+        if (lines.Length > 2) // at least 3 lines
+        {
+            var parts = lines[2].Split(':');
+            if (parts.Length > 1) // has a value after the colon
+            {
+                entryPoint = parts[1].Trim();
+            }
+        }
 
         Vector3 position = new Vector3(x, y, z);
 
@@ -350,7 +305,7 @@ public class SilkSave : BaseUnityPlugin
     {
         if (hero == null) hero = HeroController.instance;
         if (gameManager == null) gameManager = GameManager.instance;
-        if (PlayerData.instance.profileID != saveSlot) SetSavePath();
+        if (saveSlot == 0) SetSavePath();
         
         if (Input.GetKeyDown(KeyCode.F5)) SaveState();
         if (Input.GetKeyDown(KeyCode.F6)) LoadState();

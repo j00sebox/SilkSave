@@ -19,11 +19,15 @@ public class SaveSelector : MonoBehaviour
     private int currentPage = 0;
     private Action<string>? onSaveSelected;
     private int highlightedIndex = 0; 
+    private bool isShowing = false;
 
     public void Show(string folder, Action<string> callback)
     {
         savesFolder = folder;
         onSaveSelected = callback;
+
+        Time.timeScale = 0f;
+        isShowing = true;
 
         LoadSaveFiles();
 
@@ -195,10 +199,14 @@ public class SaveSelector : MonoBehaviour
     {
         Destroy(canvasObj);
         canvasObj = null;
+        Time.timeScale = 1f;
+        isShowing = false;
     }
 
     void Update()
     {
+        if (isShowing)
+        {
         int slotsOnPage = Mathf.Min(slotsPerPage, saveFiles.Count - currentPage * slotsPerPage);
 
         // Right
@@ -248,5 +256,7 @@ public class SaveSelector : MonoBehaviour
         // Page navigation
         if (Input.GetKeyDown(KeyCode.PageUp)) PrevPage();
         if (Input.GetKeyDown(KeyCode.PageDown)) NextPage();
+
+        }
     }
 }
