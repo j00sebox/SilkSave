@@ -4,13 +4,15 @@ using System.Linq;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
+using HutongGames.PlayMaker.Actions;
 
 public class SaveSelector : MonoBehaviour
 {
-    public string savesFolder = ""; 
-    public Vector2 panelSize = new Vector2(800, 600);
-    public Vector2 slotSize = new Vector2(200, 100);
-    public int slotsPerPage = 6;
+    private string savesFolder = "";
+    private Vector2 panelSize = new Vector2(800, 600);
+    private Vector2 slotSize = new Vector2(200, 100);
+    private int slotsPerPage = 6;
+    private int slotsOnPage = 0;
 
     private GameObject? canvasObj;
     private GameObject? panelObj;
@@ -18,8 +20,12 @@ public class SaveSelector : MonoBehaviour
     private List<string> saveFiles = new List<string>();
     private int currentPage = 0;
     private Action<string>? onSaveSelected;
-    private int highlightedIndex = 0; 
+    private int highlightedIndex = 0;
     private bool isShowing = false;
+
+    private float stickTimer = -1f;
+    private float stickRepeatDelay = -1.2f;
+    private float stickDeadzone = -1.5f;
 
     public void Show(string folder, Action<string> callback)
     {
@@ -66,14 +72,14 @@ public class SaveSelector : MonoBehaviour
         panelObj.transform.SetParent(canvasObj?.transform, false);
 
         Image img = panelObj.AddComponent<Image>();
-        img.color = new Color(0f, 0f, 0f, 0.8f); 
+        img.color = new Color(0f, 0f, 0f, 0.8f);
 
         RectTransform rt = panelObj.GetComponent<RectTransform>();
-        rt.anchorMin = new Vector2(0f, 0f); 
-        rt.anchorMax = new Vector2(1f, 1f); 
+        rt.anchorMin = new Vector2(0f, 0f);
+        rt.anchorMax = new Vector2(1f, 1f);
         rt.pivot = new Vector2(0.5f, 0.5f);
-        rt.offsetMin = Vector2.zero; 
-        rt.offsetMax = Vector2.zero; 
+        rt.offsetMin = Vector2.zero;
+        rt.offsetMax = Vector2.zero;
     }
 
     private void CreateSaveSlots()
@@ -82,7 +88,7 @@ public class SaveSelector : MonoBehaviour
             Destroy(obj);
         saveSlots.Clear();
 
-        int columns = 2; 
+        int columns = 2;
         int rows = Mathf.CeilToInt((float)slotsPerPage / columns);
 
         float panelWidth = ((RectTransform)panelObj.transform).rect.width;
@@ -129,13 +135,11 @@ public class SaveSelector : MonoBehaviour
             outline.effectDistance = new Vector2(3, 3);
             outline.enabled = false;
 
-
             saveSlots.Add(slot);
 
-            int index = i;
             btn.onClick.AddListener(() =>
             {
-                int globalIndex = currentPage * slotsPerPage + index;
+                int globalIndex = currentPage * slotsPerPage + i;
                 if (globalIndex < saveFiles.Count)
                     SelectSave(saveFiles[globalIndex]);
             });
@@ -175,7 +179,7 @@ public class SaveSelector : MonoBehaviour
         Close();
     }
 
-    public void NextPage()
+    private void NextPage()
     {
         if ((currentPage + 1) * slotsPerPage < saveFiles.Count)
         {
@@ -185,7 +189,7 @@ public class SaveSelector : MonoBehaviour
         }
     }
 
-    public void PrevPage()
+    private void PrevPage()
     {
         if (currentPage > 0)
         {
@@ -195,7 +199,7 @@ public class SaveSelector : MonoBehaviour
         }
     }
 
-    public void Close()
+    private void Close()
     {
         Destroy(canvasObj);
         canvasObj = null;
@@ -203,60 +207,110 @@ public class SaveSelector : MonoBehaviour
         isShowing = false;
     }
 
-    void Update()
+    private void Update()
     {
         if (isShowing)
         {
-        int slotsOnPage = Mathf.Min(slotsPerPage, saveFiles.Count - currentPage * slotsPerPage);
+            slotsOnPage = Mathf.Min(slotsPerPage, saveFiles.Count - currentPage * slotsPerPage);
 
-        // Right
-        if (Input.GetKeyDown(KeyCode.RightArrow) || Input.GetKeyDown(KeyCode.D))
-        {
-            if (highlightedIndex + 1 >= slotsOnPage)
+            stickTimer -= Time.unscaledDeltaTime;
+
+            float horizontal = Input.GetAxis("Horizontal"); 
+            float vertical = Input.GetAxis("Vertical");
+
+            if (stickTimer <= 0f)
+            {
+                if (horizontal > stickDeadzone)
+                {
+                    MoveRight();
+                    stickTimer = stickRepeatDelay;
+                }
+                else if (horizontal < -stickDeadzone)
+                {
+                    MoveLeft();
+                    stickTimer = stickRepeatDelay;
+                }
+
+                if (vertical > stickDeadzone)
+                {
+                    MoveUp();             
+                    stickTimer = stickRepeatDelay;
+                }
+                else if (vertical < -stickDeadzone)
+                {
+                    MoveDown();
+                    stickTimer = stickRepeatDelay;
+                }
+            }
+
+            if (Input.GetKeyDown(KeyCode.RightArrow) || Input.GetKeyDown(KeyCode.D))
+            {
+                MoveRight();
+            }
+
+            if (Input.GetKeyDown(KeyCode.LeftArrow) || Input.GetKeyDown(KeyCode.A))
+            {
+                MoveLeft();
+            }
+
+            if (Input.GetKeyDown(KeyCode.DownArrow) || Input.GetKeyDown(KeyCode.S))
+            {
+                MoveDown();
+            }
+
+            if (Input.GetKeyDown(KeyCode.UpArrow) || Input.GetKeyDown(KeyCode.W))
+            {
+                MoveUp();
+            }
+
+            if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.JoystickButton0))
+            {
+                int globalIndex = currentPage * slotsPerPage + highlightedIndex;
+                if (globalIndex < saveFiles.Count)
+                    SelectSave(saveFiles[globalIndex]);
+            }
+
+            if (Input.GetKeyDown(KeyCode.JoystickButton5))
+            {
                 NextPage();
-            else
-                ++highlightedIndex;
-            UpdatePage();
-        }
+            }
 
-        // Left
-        if (Input.GetKeyDown(KeyCode.LeftArrow) || Input.GetKeyDown(KeyCode.A))
-        {
-            if (highlightedIndex - 1 < 0)
+            if (Input.GetKeyDown(KeyCode.JoystickButton4))
+            {
                 PrevPage();
-            else
-                --highlightedIndex;
-            UpdatePage();
+            }
         }
+    }
 
-        // Down
-        if (Input.GetKeyDown(KeyCode.DownArrow) || Input.GetKeyDown(KeyCode.S))
-        {
-            highlightedIndex += 2; 
-            if (highlightedIndex >= slotsOnPage) highlightedIndex = slotsOnPage - 1;
-            UpdatePage();
-        }
+    private void MoveRight()
+    {
+        if (highlightedIndex + 1 >= slotsOnPage)
+            NextPage();
+        else
+            ++highlightedIndex;
+        UpdatePage();
+    }
 
-        // Up
-        if (Input.GetKeyDown(KeyCode.UpArrow) || Input.GetKeyDown(KeyCode.W))
-        {
-            highlightedIndex -= 2; 
-            if (highlightedIndex < 0) highlightedIndex = 0; 
-            UpdatePage();
-        }
+    private void MoveLeft()
+    {
+        if (highlightedIndex - 1 < 0)
+            PrevPage();
+        else
+            --highlightedIndex;
+        UpdatePage();
+    }
 
-        // Select
-        if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.Space))
-        {
-            int globalIndex = currentPage * slotsPerPage + highlightedIndex;
-            if (globalIndex < saveFiles.Count)
-                SelectSave(saveFiles[globalIndex]);
-        }
+    private void MoveUp()
+    {
+        highlightedIndex -= 2;
+        if (highlightedIndex < 0) highlightedIndex = 0;
+        UpdatePage();
+    }
 
-        // Page navigation
-        if (Input.GetKeyDown(KeyCode.PageUp)) PrevPage();
-        if (Input.GetKeyDown(KeyCode.PageDown)) NextPage();
-
-        }
+    private void MoveDown()
+    {
+        highlightedIndex += 2;
+        if (highlightedIndex >= slotsOnPage) highlightedIndex = slotsOnPage - 1;
+        UpdatePage();
     }
 }

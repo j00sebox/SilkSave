@@ -237,10 +237,10 @@ public class SilkSave : BaseUnityPlugin
         float z = float.Parse(posParts[2], CultureInfo.InvariantCulture);
 
         string entryPoint = "";
-        if (lines.Length > 2) // at least 3 lines
+        if (lines.Length > 2) 
         {
             var parts = lines[2].Split(':');
-            if (parts.Length > 1) // has a value after the colon
+            if (parts.Length > 1) 
             {
                 entryPoint = parts[1].Trim();
             }
